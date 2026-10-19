@@ -13,7 +13,7 @@ from zxport.screen import pixel_address
 
 SPRITE_Y_OFFSET = 32      # sprite y is screen row + 32 (the game's row table at $DC00 starts 32 rows early)
 ATTRS, END = 6144, 6912   # where the colours start and end in the buffer
-SLOTS = 16
+COPIED = 0x1AA0           # $ADB2 copies the back buffer up to here (21 colour rows)
 
 
 def mirrored(picture, hide):

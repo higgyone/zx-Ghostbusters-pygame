@@ -6,10 +6,11 @@ The scene is written as a Python generator that follows the game's code in order
 slots are kept as positions and the picture each slot shows, and every drawing is recorded in
 `ops` for the drawing code to repeat.
 """
-import trainer
-from city import HAUNTED, QUIET, bcd_dec
+from zxport import bcd
 
-GHQ, ZUUL = 17, 10
+import trainer
+from city import GHQ, HAUNTED, MARSHMALLOW_PARTS, QUIET, SPOT_OFFSETS, ZUUL, signed_distance
+
 IMAGE_INTENSIFIER, LASER = 0x08, 0x01        # $D966 bits
 # $A1AD: the 8 directions (0 up, then clockwise), as the bytes added to x and y
 DIRS = ((0x00, 0xFE), (0x02, 0xFE), (0x02, 0x00), (0x02, 0x02), (0x00, 0x02), (0xFE, 0x02), (0xFE, 0x00), (0xFE, 0xFE))
@@ -31,9 +32,6 @@ ZUUL_FRAMES = 2.8                        # a step at Zuul (measured: notes/09)
 GHQ_STEPS = (0x10, 0x10)                 # $A05F, $A073: steps before the second and third men come out
 LASER_ROOM_GHQ = 10                      # $A0BD
 # Zuul ($A426)
-MARSHMALLOW_PARTS = (("marshmallow_1", False), ("marshmallow_2", False), ("marshmallow_3", False),
-                     ("marshmallow_3", True), ("marshmallow_4", True), ("marshmallow_4", False))   # slots 8-13
-MARSHMALLOW_OFFSETS = ((0xF8, 0xF8), (0x08, 0xF8), (0xF8, 0x08), (0x08, 0x08))   # $94B4 down to $94AD
 MARSHMALLOW_START = (0x80, 0xA0)         # $A44D: his place ($D96A, $D96B)
 MARSHMALLOW_X = (0x70, 0x80)             # $A5D1: he wanders between these
 ZUUL_MAN_START = (0xE0, 0xB4)            # $A461
@@ -41,22 +39,6 @@ ZUUL_WALK_IN, SQUASHED_WAIT = 40, 48     # $A46B, $A4BF: steps
 DOOR_X, DOOR_Y = (0x78, 0x90), 0x90      # $A48D: the doorway
 HIGH_ENOUGH = 0x6C                       # $A4A5: the man gets in while the Marshmallow Man's y is below this
 ZUUL_REWARD = (0x50, 0x00)               # $A4F1: $5000
-
-
-def add_bcd(a, b, carry=0):
-    """ADD/ADC then DAA, as the Z80 does them. Returns (byte, carry)."""
-    t = a + b + carry
-    half = (a & 0x0F) + (b & 0x0F) + carry > 0x0F
-    r, c = t & 0xFF, t > 0xFF
-    diff = 0x06 if half or (r & 0x0F) > 9 else 0
-    if c or r > 0x99:
-        diff, c = diff | 0x60, True
-    return (r + diff) & 0xFF, int(c)
-
-
-def abs8(a):
-    """$AB81: a byte's distance from 0, taken as signed."""
-    return (-a) & 0xFF if a & 0x80 else a
 
 
 class Building:
@@ -150,9 +132,9 @@ class Building:
         c = self.city
         c.tick = (c.tick - 1) & 0xFF
         if c.tick == 0:
-            c.tick = ((-int(f"{c.pk // 100:02d}", 16)) & 0xFF) >> 2
+            c.tick = (-c.pk_high() & 0xFF) >> 2
             c.add_pk(1)
-        if not c.equipment & IMAGE_INTENSIFIER and c.random() > abs8(self.count):
+        if not c.equipment & IMAGE_INTENSIFIER and c.random() > signed_distance(self.count, 0):
             y, self.pos[5][1] = self.pos[5][1], 0
             yield from self.draw()
             self.pos[5][1] = y
@@ -305,7 +287,7 @@ class Building:
                 for n in range(8, 16):
                     p[n][1] = 0
                 if self.count & 7 == 0 and trainer.POWER not in trainer.on:
-                    c.power = bcd_dec(c.power)
+                    c.power = bcd.sub(c.power, 1)[0]
                     if c.power == 0:
                         c.start_message(c.text["no_power"])
                         return False
@@ -339,7 +321,7 @@ class Building:
             return
         c = d >> 1
         x = (p[tip][0] + c if facing & 1 else p[tip][0] - c) & 0xFF
-        if abs8((x - p[g][0]) & 0xFF) < 8:
+        if signed_distance(x, p[g][0]) < 8:
             self.ghost_dir = 2 if x < p[g][0] else 6
 
     def open_trap(self):
@@ -369,7 +351,7 @@ class Building:
                 p[n][1] = y
             if self.trap == 0:
                 g = self.ghost_slot()
-                if abs8((p[g][1] - top[1]) & 0xFF) < CATCH and abs8((p[g][0] - top[0]) & 0xFF) < CATCH:
+                if signed_distance(p[g][1], top[1]) < CATCH and signed_distance(p[g][0], top[0]) < CATCH:
                     self.trap = 1
                 else:
                     self.ghost_move()
@@ -401,7 +383,7 @@ class Building:
                 self.facing1 = c.facing
                 self.to_trap(1, 0x18, self.facing2)
                 self.facing2 = c.facing
-                if not (abs8((p[7][0] - p[0][0]) & 0xFF) < 4 and abs8((p[7][0] - p[1][0] + 0x18) & 0xFF) < 4):
+                if not (signed_distance(p[7][0], p[0][0]) < 4 and signed_distance(p[7][0] + 0x18, p[1][0]) < 4):
                     yield from self.draw()
                     continue
                 self.trap = 0
@@ -520,7 +502,7 @@ class Building:
             slots = (8, 9, 12, 13)
         else:
             slots = (8, 9, 10, 11)
-        for n, (dx, dy) in zip(slots, MARSHMALLOW_OFFSETS):
+        for n, (dx, dy) in zip(slots, SPOT_OFFSETS):        # $94B4 down to $94AD
             p[n][:] = [(x + dx) & 0xFF, (y + dy) & 0xFF]
         self.bob = (self.bob + 2) & 0xFF
         t = self.bob & 0x3F

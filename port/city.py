@@ -9,6 +9,8 @@ two scenes (notes/06-marshmallow-scenes.md), after which the city map carries on
 scene one call to step() is one step of the scene (see step_frames). What happens next (the
 drive, the game over) is reported in City.event for other parts of the port.
 """
+from zxport import bcd
+
 import trainer
 
 ROAD_ROWS = (0x34, 0x5C, 0x84, 0xAC)              # y of the horizontal roads
@@ -29,6 +31,9 @@ WALKER_ROWS = (0x38, 0x60, 0x88, 0xB0)
 RIGHT_, LEFT_, DOWN_, UP_ = 1, 2, 4, 8             # their directions
 REDRAW_EVERY = 0x40                                # passes between colour redraws ($9196)
 SPOT_OFFSETS = ((0xF8, 0xF8), (0x08, 0xF8), (0xF8, 0x08), (0x08, 0x08))  # $94AD: each ghost's place
+# the Marshmallow Man's pieces in sprite slots 8-13: (sprite, mirrored)
+MARSHMALLOW_PARTS = (("marshmallow_1", False), ("marshmallow_2", False), ("marshmallow_3", False),
+                     ("marshmallow_3", True), ("marshmallow_4", True), ("marshmallow_4", False))
 NONE = 0x15                                        # $D967 when no building is beside the logo
 PK_DETECTOR, MARSHMALLOW_SENSOR = 0x10, 0x02       # $D966 bits
 DETECTOR_LIGHT = (0x03, 0xF8)                      # magenta ink on a stirring building ($926A)
@@ -74,26 +79,6 @@ class Scroller:
         elif self.frame == 3 and self.left:
             return ("shift",)
         return None
-
-
-def bcd(n):
-    """A number 0-99 as a BCD byte (e.g. 47 -> $47)."""
-    return (n // 10) << 4 | n % 10
-
-
-def bcd_dec(a):
-    """The game's 'SUB 1 / DAA' on a byte, exactly as the Z80 does it, even for bytes that
-    aren't BCD (the PK tick is worked out in binary, then counted down in BCD).
-
-    a: the byte. Returns the new byte.
-    """
-    r = (a - 1) & 0xFF
-    diff = 0
-    if a == 0 or r > 0x99:
-        diff |= 0x60
-    if (a & 0x0F) == 0 or (r & 0x0F) > 9:     # half borrow, or a low digit over 9
-        diff |= 0x06
-    return (r - diff) & 0xFF
 
 
 def signed_distance(a, b):
@@ -177,18 +162,16 @@ class City:
 
     def pk_high(self):
         """PK's top two digits as the game's BCD byte ($D916)."""
-        return bcd(self.pk // 100)
+        return bcd.to_bcd(self.pk // 100)
 
     def add_money_bcd(self, b, c):
         """$AAFE: add B (hundreds) and C (dollars) to the money in BCD, as the game does,
         stopping at $999999."""
-        from building import add_bcd
-        digits = f"{self.money:06d}"
-        hi, mid, lo = (int(digits[i:i + 2], 16) for i in (0, 2, 4))
-        lo, carry = add_bcd(lo, c)
-        mid, carry = add_bcd(mid, b, carry)
-        hi, carry = add_bcd(hi, 0, carry)
-        self.money = 999999 if carry else int(f"{hi:02X}{mid:02X}{lo:02X}")
+        hi, mid, lo = bcd.to_bytes(self.money, 3)
+        lo, carry = bcd.add(lo, c)
+        mid, carry = bcd.add(mid, b, carry)
+        hi, carry = bcd.add(hi, 0, carry)
+        self.money = MAX_MONEY if carry else bcd.from_bytes([hi, mid, lo])
 
     def after_building(self):
         """$9FBD-$A02B: back from a building: it is quiet now whatever happened, the bait is
@@ -475,7 +458,7 @@ class City:
     def pk_tick(self):
         """$8F63: count down to the next tick; on it the walkers step, PK goes up 1, the next
         tick is set ((PK's top byte from $A1) / 8 passes away) and the roaming ghosts move."""
-        self.tick = bcd_dec(self.tick)
+        self.tick = bcd.sub(self.tick, 1)[0]     # SUB 1 / DAA, though the tick is set in binary
         if self.tick:
             return
         for n in range(2):

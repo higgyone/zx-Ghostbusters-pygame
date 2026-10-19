@@ -1,8 +1,8 @@
 """Keyboard and joystick to the directions and buttons a game reads.
 
 A game lists its controls by name, e.g. QAOP = {"up": [pygame.K_q], ...}; held() says which
-names are held. A plugged-in joystick or gamepad also works: its stick or hat gives up, down,
-left and right, and any button gives "fire".
+names are held. A joystick or gamepad also works, even one plugged in after start-up: its stick
+or hat gives up, down, left and right, and any button gives "fire".
 """
 import pygame
 
@@ -18,15 +18,24 @@ class Keys:
 
     def __init__(self, layout, arrows=True, joystick=True):
         """layout: {name: [pygame key codes]}. arrows: add the arrow keys to up/down/left/right.
-        joystick: read the first joystick or gamepad if one is plugged in (pygame must be
-        initialised first)."""
+        joystick: read the first joystick or gamepad plugged in, now or later (pygame must be
+        initialised first, and its events read, e.g. with pygame.event.get, to see one plugged in)."""
         self.layout = {name: list(codes) for name, codes in layout.items()}
         if arrows:
             for name, codes in ARROWS.items():
                 self.layout.setdefault(name, []).extend(codes)
-        self.stick = None
-        if joystick and pygame.joystick.get_init() and pygame.joystick.get_count():
-            self.stick = pygame.joystick.Joystick(0)
+        self.joystick = joystick
+        self._joy = None
+
+    @property
+    def stick(self):
+        """The joystick being read (a pygame Joystick), or None. Finds one plugged in since the
+        last look and drops one unplugged."""
+        if not self.joystick or not pygame.joystick.get_init() or not pygame.joystick.get_count():
+            self._joy = None
+        elif self._joy is None:
+            self._joy = pygame.joystick.Joystick(0)
+        return self._joy
 
     def held(self, pressed=None):
         """Which controls are held now.
@@ -37,7 +46,10 @@ class Keys:
         pressed = pressed if pressed is not None else pygame.key.get_pressed()
         out = {name for name, codes in self.layout.items() if any(pressed[c] for c in codes)}
         if self.stick:
-            out |= self._stick()
+            try:
+                out |= self._stick()
+            except pygame.error:     # unplugged since the last look
+                self._joy = None
         return out
 
     def _stick(self):

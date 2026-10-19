@@ -4,8 +4,9 @@ and the screen, with a click for each one. The menu, the shops and the ending us
 import numpy as np
 from zxport.screen import Screen, screen_from_bytes
 
-ATTRS, COPIED = 6144, 0x1AA0     # $ADB2 copies the back buffer up to here (21 colour rows)
-BLANK_ATTR = 0x38                # $9971
+from sprites import ATTRS, COPIED
+
+BLANK_ATTR = 0x38                # $9971: white paper, black ink
 CHAR_FRAMES = 2.08               # frames per character typed (measured: $A8FC waits for the next frame)
 CLICK_SECONDS = 0.041            # $8C0F: the speaker is on while a character is copied to the screen
 

@@ -4,7 +4,7 @@ Or the bank's game over ($916E, notes/11-game-over.md): its message, then the la
 """
 from account import account_number
 from building_screen import paint
-from text_screen import CHAR_FRAMES as ENDING_FRAMES, CLICK_SECONDS, TextScreen   # noqa: F401
+from text_screen import TextScreen
 
 END_COLOURS = [(20, 8, 11, 1, 0x32), (0, 11, 31, 1, 0x32)]   # $A5DF: the money and the number in red
 

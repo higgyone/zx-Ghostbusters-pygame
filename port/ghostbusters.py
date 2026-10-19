@@ -38,8 +38,9 @@ from building import BUILDING_FRAMES, Building
 from city_screen import CityView
 from drive_screen import DriveView
 from building_screen import SPRITES as BUILDING_SPRITES, BuildingView, back_to_city, save_city_slots
-from ending import CLICK_SECONDS, ENDING_FRAMES, Ending
+from ending import Ending
 from start import RUB_OUT, SPRITES as START_SPRITES, Start
+from text_screen import CHAR_FRAMES as ENDING_FRAMES, CLICK_SECONDS
 import options
 import trainer
 

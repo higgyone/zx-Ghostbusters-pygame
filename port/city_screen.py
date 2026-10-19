@@ -4,17 +4,14 @@ sprite engine, the haunted buildings' colours, and the two text lines at the bot
 from zxport.screen import Screen, pixel_address, screen_from_bytes
 from zxport.text import print_at, print_bytes
 
-from sprites import ATTRS, END, Slot, SpriteData, SpriteEngine
-
-COPIED = 0x1AA0                  # $ADB2 copies this much of the back buffer to the screen (21 colour rows)
+from city import MARSHMALLOW_PARTS
+from sprites import ATTRS, COPIED, END, Slot, SpriteData, SpriteEngine
 
 LOGO_SLOT, GHOST_SLOTS, WALKER_SLOTS, BAIT_SLOT, PART_SLOTS = 4, (0, 1, 2, 3), (5, 6), 7, (8, 9, 10, 11, 12, 13)
 BAIT_DOT_SLOT = 14
 BAIT_COLOUR = (0x05, 0xF8)       # cyan ink
 PART_COLOUR = (0x47, 0x00)       # bright white on black: the Marshmallow Man forming
-# the Marshmallow Man's pieces in slots 8-13 (sprite, mirrored), and a dot in slot 14 (the mayor's reward)
-PARTS = (("marshmallow_1", False), ("marshmallow_2", False), ("marshmallow_3", False),
-         ("marshmallow_3", True), ("marshmallow_4", True), ("marshmallow_4", False))
+# the Marshmallow Man's pieces in slots 8-13 (city.MARSHMALLOW_PARTS), and a dot in slot 14 (the mayor's reward)
 LOGO_COLOUR = (0x02, 0xF8)       # the logo sprite's header ($7105): red ink, the cell's paper kept
 WALKER_COLOURS = ((0x00, 0xF8), (0x01, 0xF8))   # black keyhole, blue key
 HAUNTED_COLOUR = (0x82, 0xF8)    # $9365: red ink and FLASH, the paper kept
@@ -96,7 +93,7 @@ class CityView:
         for n, name, colour in zip(WALKER_SLOTS, ("keyhole", "key"), WALKER_COLOURS):
             self.slots[n] = Slot(SpriteData(sprites[name]), colour)
         self.slots[BAIT_SLOT] = Slot(SpriteData(sprites["bait"]), BAIT_COLOUR)
-        for n, (name, mirror) in enumerate(PARTS):
+        for n, (name, mirror) in enumerate(MARSHMALLOW_PARTS):
             self.slots[8 + n] = Slot(SpriteData(sprites[name], mirror), PART_COLOUR)
         self.slots[BAIT_DOT_SLOT] = Slot(SpriteData(sprites["dot"]))
         self.back = bytearray(back if back is not None else city_scr)

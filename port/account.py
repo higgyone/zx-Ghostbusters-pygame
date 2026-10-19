@@ -3,6 +3,7 @@
 It is 24 bits written as 8 octal digits: the money's middle BCD byte ($D964), a check byte
 made from the money and the player's name, and the money's top BCD byte ($D965).
 """
+from zxport import bcd
 
 
 def stir(a):
@@ -29,9 +30,14 @@ def check_byte(hi, mid, name):
 
 
 def money_bytes(money):
-    """Money in dollars as the two BCD bytes the number holds: (hi, mid), whole hundreds."""
-    d = f"{money // 100:04d}"
-    return int(d[:2], 16), int(d[2:], 16)
+    """Money in dollars as the BCD bytes ($D965, $D964): whole hundreds. Returns (hi, mid)."""
+    hi, mid = bcd.to_bytes(money // 100, 2)
+    return hi, mid
+
+
+def money_from_bytes(hi, mid):
+    """Dollars from the BCD bytes ($D965, $D964), even if they aren't really BCD."""
+    return bcd.from_bytes([hi, mid]) * 100
 
 
 def account_number(money, name):
@@ -47,4 +53,4 @@ def read_account(number, name):
     mid, check, hi = n >> 16 & 0xFF, n >> 8 & 0xFF, n & 0xFF
     if check != check_byte(hi, mid, name):
         return None
-    return int(f"{hi:02X}{mid:02X}") * 100
+    return money_from_bytes(hi, mid)

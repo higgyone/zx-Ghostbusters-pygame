@@ -11,6 +11,7 @@ step stopped at is in Start.last, so the game knows how long it takes:
 - 'pass'  a pass of the equipment shop, drawn ($85C7); 'lift' a forklift step ($8917).
 """
 import trainer
+from account import check_byte, money_bytes, money_from_bytes
 from building_screen import paint
 from sprites import Slot, SpriteData, SpriteEngine
 from text_screen import ATTRS, COPIED, TextScreen, pixel_row
@@ -57,17 +58,6 @@ LIFT_COLOUR = (0x02, 0xF8)                 # the forklift's header: red ink
 SUNG_ROW, NEXT_ROW = 18, 20
 SUNG_INK, NEXT_INK, WORD_INK = 0x04, 0x02, 0x47
 FIRST_COL = 9                              # $AEE8: $5A49
-
-
-def bcd_bytes(money):
-    """Money in dollars as the BCD bytes ($D965, $D964). Returns (hi, mid)."""
-    d = f"{money // 100 % 10000:04d}"
-    return int(d[:2], 16), int(d[2:], 16)
-
-
-def from_bcd(hi, mid):
-    """Dollars from the BCD bytes ($D965, $D964), even if they aren't really BCD."""
-    return (((hi >> 4) * 10 + (hi & 15)) * 100 + (mid >> 4) * 10 + (mid & 15)) * 100
 
 
 class Start(TextScreen):
@@ -308,7 +298,6 @@ class Start(TextScreen):
     def name_and_account(self):
         """$83A1-$8450. Returns the money to start with, or None if the account number was
         wrong (the name is asked for again)."""
-        from account import check_byte
         yield from self.message(self.text["name"])
         paint(self.back, NAME_RED)
         self.copy()
@@ -330,7 +319,7 @@ class Start(TextScreen):
         if check != check_byte(hi, mid, self.name):
             yield from self.message(self.text["invalid"])
             return None
-        return from_bcd(hi, mid)
+        return money_from_bytes(hi, mid)
 
     # --- the car shop -------------------------------------------------------------------
 
@@ -357,7 +346,7 @@ class Start(TextScreen):
                 if not 0 <= n <= 3:
                     break
                 price, self.capacity = CARS[n]
-                hi, mid = bcd_bytes(self.money)
+                hi, mid = money_bytes(self.money)
                 if not hi and mid < price:
                     break
                 if price == 0x99:                     # $15000: two takes, $9900 and $5100
@@ -366,7 +355,7 @@ class Start(TextScreen):
                     self.take(9900)
                     self.take(5100)
                 else:
-                    self.take(from_bcd(0, price))
+                    self.take(money_from_bytes(0, price))
                 self.car = n
                 self.car_picture(n)
                 self.col, self.row = MONEY_AT
@@ -478,9 +467,9 @@ class Start(TextScreen):
         else:                                         # $86A4: buy
             item = self.carried
             bit, car_x, car_y, price = ITEMS[item]
-            hi, mid = bcd_bytes(self.money)
+            hi, mid = money_bytes(self.money)
             if self.capacity and (hi or mid >= price):
-                self.take(from_bcd(0, price))
+                self.take(money_from_bytes(0, price))
                 self.col, self.row = MONEY_AT
                 self.money_here()
                 self.capacity -= 1

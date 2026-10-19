@@ -5,11 +5,11 @@ roof) sits in the back buffer and is shifted half a byte at a time as it moves.
 from zxport.screen import Screen, pixel_address, screen_from_bytes
 from zxport.text import print_bytes
 
-from city_screen import COPIED, GHOST_SLOTS, LOGO_SLOT, MESSAGE_ROW, TEXT_ROW
-from sprites import ATTRS, Slot, SpriteData
+from city_screen import GHOST_SLOTS, LOGO_SLOT, MESSAGE_ROW, TEXT_ROW
+from drive import LOGO_DX
+from sprites import ATTRS, COPIED, Slot, SpriteData
 
 ROAD_INK = 0x3E                 # $9539: the back buffer's colours on the road (yellow ink, white paper)
-SCREEN_PAPER = 0x38             # $9971: the screen's colours until the first copy
 ROOF_SLOT = 5                   # the slot the roof items are drawn with ($AE34), then left behind
 # $99F4: what goes on the roof, in order: the $D966 bit (or 'bait', 'traps'), x, y, sprite, y offset
 ROOF = ((0x10, 0xD8, 0x48, "pk_energy_detector", 0x04), (0x08, 0xD8, 0x68, "image_intensifier", 0x05),
@@ -35,13 +35,11 @@ class DriveView:
         self.view, self.car_scr = view, car_scr
         self.roof = {name: SpriteData(s) for name, s in sprites.items()}
         self.back, self.slots, self.engine = view.back, view.slots, view.engine
-        self.city_slots = None
         self.screen = view.screen
 
     def start(self, drive):
         """$952D-$963D: the road, the car and its roof, PK and money. drive: a Drive."""
         c, v = drive.city, self.view
-        self.city_slots = [(s.x, s.y) for s in self.slots]          # $951B (kept for after the building)
         for s in self.slots:                                          # $ADE9: everything off
             s.x = s.y = 0
         self.engine.update()
@@ -87,10 +85,6 @@ class DriveView:
         """$ADB2: the back buffer to the screen (but not its bottom 3 colour rows)."""
         self.screen = self.view.screen = Screen(*screen_from_bytes(self.back[:COPIED] + self.view.screen_attrs))
 
-    def interrupt(self, city):
-        """One frame of the bottom line's scroller, as on the city map."""
-        self.view.interrupt(city)
-
     def update(self, drive):
         """After a Drive.step: the drawing parts of the same step. Returns the Screen."""
         c = drive.city
@@ -104,7 +98,7 @@ class DriveView:
             self.shift_car(drive.x, drive.shift)
             self.colour_car(drive.x, drive.colour)
         logo = self.slots[LOGO_SLOT]
-        logo.x, logo.y = (drive.x + 0x0A) & 0xFF, drive.car_y
+        logo.x, logo.y = (drive.x + LOGO_DX) & 0xFF, drive.car_y
         for n, (x, y) in zip(GHOST_SLOTS, drive.ghost_slots()):
             self.slots[n].x, self.slots[n].y = x, y
         self.engine.update()

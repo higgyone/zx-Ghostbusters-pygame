@@ -5,12 +5,11 @@ going back to the city map afterwards ($9FBD-$A02B, then $8CBD).
 from zxport.screen import Screen, screen_from_bytes
 from zxport.text import print_at, print_bytes
 
-from building import GHQ, ZUUL
-from city_screen import (BAIT_DOT_SLOT, BAIT_SLOT, COPIED, GHOST_SLOTS, HAUNTED_COLOUR, LOGO_SLOT, MESSAGE_ROW,
+from city import GHQ, ZUUL
+from city_screen import (BAIT_DOT_SLOT, BAIT_SLOT, GHOST_SLOTS, HAUNTED_COLOUR, LOGO_SLOT, MESSAGE_ROW,
                          PART_SLOTS, TEXT_ROW, WALKER_SLOTS)
-from sprites import ATTRS, END, Slot, SpriteData, SpriteEngine
-
-BLANK_ATTR = 0x38                 # $9971: white paper, black ink
+from sprites import ATTRS, COPIED, END, Slot, SpriteData, SpriteEngine
+from text_screen import BLANK_ATTR
 # $A32A colour tables: (column, row, width, height, colour)
 SHOP = [(0, 0, 3, 6, 8), (30, 0, 2, 5, 8), (0, 5, 2, 4, 32), (0, 15, 2, 1, 32), (7, 7, 18, 1, 120),
         (9, 8, 14, 3, 112), (7, 11, 18, 1, 58), (13, 8, 1, 3, 120), (18, 8, 1, 3, 120), (9, 12, 1, 4, 112),
@@ -105,11 +104,6 @@ class BuildingView:
     def show(self):
         """$ADB2: the back buffer to the screen (not its bottom 3 colour rows)."""
         self.screen = self.view.screen = Screen(*screen_from_bytes(self.back[:COPIED] + self.view.screen_attrs))
-
-    def interrupt(self, city):
-        """One frame of the bottom line's scroller."""
-        self.view.interrupt(city)
-
 
 def save_city_slots(view):
     """$951B: what the city's sprite slots were, to come back to after the building.

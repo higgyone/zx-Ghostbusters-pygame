@@ -74,7 +74,7 @@ class Player:
         """
         if seconds <= 0:
             return
-        pc = self.sim.registers[24]
+        pc = self.sim.registers[REGS["PC"]]
         with _quiet():   # trace prints "Stopped at ..." each time
             self.tracer.run(pc, -1, 0, int(seconds * TSTATES_PER_SECOND), True, self._keyboard, self.executed,
                             None, None, "$", "02X", "04X")
@@ -86,7 +86,7 @@ class Player:
         max_seconds: give up after this much Spectrum time.
         Returns True if it got there. Handy for stepping a game loop one pass at a time.
         """
-        pc = self.sim.registers[24]
+        pc = self.sim.registers[REGS["PC"]]
         # no frame callback: SkoolKit then keeps tracer.keyboard as it is (with one it starts
         # each run with no keys down until the next frame, so short runs would miss keys)
         self.tracer.keyboard = [0] * 8
@@ -94,7 +94,7 @@ class Player:
         with _quiet():
             self.tracer.run(pc, addr, 0, int(max_seconds * TSTATES_PER_SECOND), True, None, self.executed,
                             None, None, "$", "02X", "04X")
-        return self.sim.registers[24] == addr
+        return self.sim.registers[REGS["PC"]] == addr
 
     def press(self, key, hold=0.3, after=0.3):
         """Press and release a key.
@@ -107,12 +107,14 @@ class Player:
         self.held.discard(key)
         self.wait(after)
 
-    def call(self, addr, stop=0xFFF0, max_seconds=20, **regs):
+    def call(self, addr, stop=0xFFF0, max_seconds=20, sp=0xFF00, **regs):
         """Run one of the game's routines, like a CALL from BASIC, with interrupts off.
 
         addr: the routine's address.
         stop: an address the routine never runs; it is pushed as the return address.
         max_seconds: give up after this much Spectrum time.
+        sp: the stack: stop is written at sp and sp+1 and SP set to sp, so the routine's own
+            pushes go just below sp. Pick memory the game doesn't use (default $FF00).
         regs: registers to set first, e.g. A=3, DE=0x8000, HL=0x4000, IY=0x5C3A.
         Returns the address it stopped at (stop if the routine returned).
         """
@@ -123,7 +125,6 @@ class Player:
                 r[REGS[hi]], r[REGS[lo]] = value >> 8, value & 0xFF
             else:
                 r[REGS[name]] = value
-        sp = 0xFF00
         self.sim.memory[sp:sp + 2] = [stop & 0xFF, stop >> 8]
         r[REGS["SP"]], r[REGS["IFF"]] = sp, 0
         with _quiet():
