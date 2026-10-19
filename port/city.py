@@ -33,7 +33,6 @@ NONE = 0x15                                        # $D967 when no building is b
 PK_DETECTOR, MARSHMALLOW_SENSOR = 0x10, 0x02       # $D966 bits
 DETECTOR_LIGHT = (0x03, 0xF8)                      # magenta ink on a stirring building ($926A)
 SENSOR_LIGHT = (0x38, 0xC7)                        # white paper on the building beside the logo
-# where the bottom line's messages are, in assets/text.json (see tools/extract_assets.py)
 STATUS_DIGITS = (0x12, 0x13, 0x24, 0x35)           # $7779, $777A, $778B, $779C in the status line
 PASS_FRAMES = 50 / 22                              # a pass takes about 2.27 frames (measured in the simulator)
 ATTACK_FRAMES = 16                                 # frames between the attack's steps ($8A0F)
@@ -75,8 +74,6 @@ class Scroller:
         elif self.frame == 3 and self.left:
             return ("shift",)
         return None
-
-
 
 
 def bcd(n):

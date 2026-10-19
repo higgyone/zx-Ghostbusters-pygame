@@ -1,7 +1,7 @@
 """Printing text on a Screen with an 8x8 font, as the Spectrum's ROM does.
 
 The ROM's font is copyrighted, so no port includes it: a game's extract_assets.py saves it
-from the simulator (zxkit) as font.bin, 768 bytes, characters 32-127 with 8 bytes each,
+with zxkit.screen.save_rom_font as font.bin, 768 bytes, characters 32-127 with 8 bytes each,
 just as it sits in the ROM at $3D00.
 """
 import numpy as np

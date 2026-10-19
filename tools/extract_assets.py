@@ -219,7 +219,7 @@ class WrongCopy(Exception):
 
 
 def extract(tape, out, any_copy=False):
-    """Save every picture and sound found so far.
+    """Save every picture, sound, text and font file the port reads.
 
     tape: the user's Ghostbusters tape (.tap/.tzx/.z80, or a .zip of one).
     out: folder to write the files to.

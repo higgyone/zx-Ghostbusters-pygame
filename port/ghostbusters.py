@@ -63,7 +63,7 @@ SPRITES = {"logo": "logo", "ghost": "ghost_city", "keyhole": "keyhole", "key": "
 def load_view(assets, back=None):
     """The city's drawing, from the files extract_assets.py wrote.
 
-    assets: that folder. back: passed on to CityView. Returns a CityView.
+    assets: that folder. back: passed on to CityView. Returns (CityView, text.json's messages).
     """
     with open(os.path.join(assets, "city_map.scr"), "rb") as f:
         city_scr = f.read()
@@ -234,8 +234,8 @@ def main():
             if mode != "start":
                 view.interrupt(city)
             due += 1
-            while mode not in ("stopped", "over") and due >= step_frames(mode, city, start):
-                due -= step_frames(mode, city, start)
+            while mode != "over" and due >= step_frames(mode, city, start, building):
+                due -= step_frames(mode, city, start, building)
                 if mode == "start":
                     start.step(keys.held(), typed_keys())
                     border = PALETTE[start.border]
@@ -306,10 +306,12 @@ def main():
         if shown.screen:                       # (a new scene has none until its first drawing)
             window.show(shown.screen, border, flash)
 
-def step_frames(mode, city, start):
+def step_frames(mode, city, start, building):
     """How many frames the next step of a mode takes (the start's: as long as its last)."""
     if mode == "start":
         return START_FRAMES.get(start.last, 1)
+    if mode == "building" and building:
+        return building.step_frames
     return STEP_FRAMES.get(mode, city.step_frames)
 
 

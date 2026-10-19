@@ -27,6 +27,7 @@ TRAP_CARRIED = 8                         # $D99D while the first man carries the
 STREAM_UP, STREAM_DOWN = 0xFA, 0x06      # $D9A1: the trap's stream rises, then falls, 6 pixels a step
 CATCH = 0x0C                             # $9DE3: how close to the stream's top the ghost has to be
 BUILDING_FRAMES = 2.4                    # a step takes about 2.1-2.6 frames (measured in the simulator)
+ZUUL_FRAMES = 2.8                        # a step at Zuul (measured: notes/09)
 GHQ_STEPS = (0x10, 0x10)                 # $A05F, $A073: steps before the second and third men come out
 LASER_ROOM_GHQ = 10                      # $A0BD
 # Zuul ($A426)
@@ -102,6 +103,7 @@ class Building:
         self.state = c.buildings[self.number] if self.number < 20 else QUIET   # $D9D7
         self.ending = None                           # at Zuul: 'won' or 'lost' when it is over
         self.bob = 0                                 # $D979: the Marshmallow Man's bobbing
+        self.step_frames = ZUUL_FRAMES if self.number == ZUUL else BUILDING_FRAMES
         if self.number == ZUUL:
             self.gen = self.zuul()
             return
@@ -343,7 +345,7 @@ class Building:
     def open_trap(self):
         """$9D2B-$9E39: the trap's stream rises and falls; a ghost near its top is caught.
         Returns True if it was."""
-        c, p = self.city, self.pos
+        p = self.pos
         for n in range(8, 16):
             p[n][1] = 0
         self.record("ab88")
