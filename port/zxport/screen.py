@@ -28,14 +28,16 @@ def load_scr(path):
         return screen_from_bytes(f.read())
 
 
+# where each screen row starts in screen memory: thirds, then character rows, then pixel rows
+_ROW_BYTES = (((np.arange(HEIGHT) & 0xC0) << 5) | ((np.arange(HEIGHT) & 0x07) << 8)
+              | ((np.arange(HEIGHT) & 0x38) << 2))[:, None] + np.arange(32)
+
+
 def screen_from_bytes(data):
     """Split 6912 bytes of Spectrum screen memory into (pixels, attrs), as load_scr."""
-    pixels = np.zeros((HEIGHT, WIDTH), np.uint8)
-    for y in range(HEIGHT):
-        # the Spectrum's screen rows are stored out of order: thirds, then character rows, then pixel rows
-        row = pixel_address(0, y)
-        pixels[y] = np.unpackbits(np.frombuffer(bytes(data[row:row + 32]), np.uint8))
-    attrs = np.frombuffer(bytes(data[6144:6912]), np.uint8).reshape(24, 32).copy()
+    raw = np.frombuffer(bytes(data[:6912]), np.uint8)
+    pixels = np.unpackbits(raw[_ROW_BYTES], axis=1)
+    attrs = raw[6144:6912].reshape(24, 32).copy()
     return pixels, attrs
 
 
@@ -107,8 +109,11 @@ class Screen:
             ink, paper = np.where(flashing, paper, ink), np.where(flashing, ink, paper)
         ink = np.repeat(np.repeat(ink, 8, 0), 8, 1)
         paper = np.repeat(np.repeat(paper, 8, 0), 8, 1)
-        colours = np.array(PALETTE, np.uint8)[np.where(self.pixels == 1, ink, paper)]
-        surface = pygame.surfarray.make_surface(colours.transpose(1, 0, 2))
+        indexed = pygame.Surface((WIDTH, HEIGHT), 0, 8)       # palette colours 0-15
+        indexed.set_palette(PALETTE)
+        pygame.surfarray.blit_array(indexed, np.where(self.pixels == 1, ink, paper).T)
         if scale != 1:
-            surface = pygame.transform.scale(surface, (WIDTH * scale, HEIGHT * scale))
+            indexed = pygame.transform.scale(indexed, (WIDTH * scale, HEIGHT * scale))
+        surface = pygame.Surface(indexed.get_size(), 0, 32)  # plain RGB, as callers expect
+        surface.blit(indexed, (0, 0))
         return surface

@@ -61,7 +61,7 @@ def is_blank(scr):
     scr: 6912 bytes of screen memory.
     Returns True or False.
     """
-    return len(set(screen_image(scr, scale=1).getdata())) == 1
+    return screen_image(scr, scale=1).getcolors(1) is not None
 
 
 def contact_sheet(images, labels, columns=4):
